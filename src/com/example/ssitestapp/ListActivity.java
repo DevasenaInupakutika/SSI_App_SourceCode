@@ -1,15 +1,15 @@
 package com.example.ssitestapp;
 
-import android.app.ActionBar;
+import java.util.ArrayList;
+import java.util.List;
+
 import android.app.Activity;
 import android.app.Application;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.StrictMode;
 import android.support.v4.app.NavUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -20,9 +20,8 @@ import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
-import android.widget.ImageView;
+import android.widget.ImageView;	
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -36,6 +35,11 @@ public class ListActivity extends Activity{
 	
 	private ProgressDialog pDialog;
 	private static final String RSSFEEDURL = "http://www.software.ac.uk/blog/rss-all";
+	
+	DOMParser myParser = new DOMParser();
+	String xml;
+	
+	private ArrayList<RSSItem> blogs;
 
 	private static final String TAG = "MyActivity";
 	@Override
@@ -76,18 +80,15 @@ public class ListActivity extends Activity{
 		
 		getActionBar().setDisplayHomeAsUpEnabled(true);
 		
+		blogs = new ArrayList<RSSItem>();
+		
 		// Get feed from the file
 		feed = (RSSFeed) getIntent().getExtras().get("feed");
 		
 		// Initialise the variables
 		lv = (ListView) findViewById(R.id.listView);
 		lv.setVerticalFadingEdgeEnabled(true);
-		
-		//myApp = getApplication();
-	    
-		
-		adapter = new CustomListAdapter(ListActivity.this);
-		lv.setAdapter(adapter);
+
 		new loadListView().execute();		
 
 		//Endless scrolling list.
@@ -110,6 +111,8 @@ public class ListActivity extends Activity{
 	                    loadingMore = false;
 	                    previousTotal = totalItemCount;
 	                    currentPage++;
+	                    adapter.count += visibleItemCount;
+	                    adapter.notifyDataSetChanged();
 	                    
 	                    // Find your own condition in order to know when you 
 	                    // have finished displaying all items
@@ -156,24 +159,7 @@ public class ListActivity extends Activity{
 		//setupActionBar();
 			
 	}
-	
-  /*private void setupActionBar() {
-		// TODO Auto-generated method stub
-	  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-			
-			getActionBar().setDisplayHomeAsUpEnabled(true);
-		
-	}
-}*/
 
-
-	/*// @Override
-    protected void onDestroy() {
-		super.onDestroy();
-		//adapter.imageLoader.clearCache();
-		adapter.notifyDataSetChanged();
-		}*/
-	
     public class loadListView extends AsyncTask<Integer, String, String>{
 
     	/* (non-Javadoc)
@@ -195,11 +181,13 @@ public class ListActivity extends Activity{
 		@Override
 		protected String doInBackground(Integer... params) {
 			// TODO Auto-generated method stub
-			DOMParser myParser = new DOMParser();
-			String xml = myParser.getXmlFromUrl(RSSFEEDURL);
+			xml = myParser.getXmlFromUrl(RSSFEEDURL);
             feed = myParser.parseXml(xml,0);
-            
-			return null;
+            for(int i=0;i<20;i++){
+            	blogs.add(feed.getItem(i));         	
+              }
+           
+            return null;
 		}
 		
 		/* (non-Javadoc)
@@ -208,11 +196,9 @@ public class ListActivity extends Activity{
 		@Override
 		protected void onPostExecute(String result) {
 			// TODO Auto-generated method stub
-			//super.onPostExecute(result);
-			
-			//ActionBar actionBar = getActionBar();
-			//actionBar.setDisplayHomeAsUpEnabled(true);
-			
+			super.onPostExecute(result);
+			adapter = new CustomListAdapter(ListActivity.this,blogs);
+			lv.setAdapter(adapter);
 			pDialog.dismiss();
 		}
     	
@@ -240,18 +226,13 @@ public class ListActivity extends Activity{
 					// TODO Auto-generated method stub
 					// Parsing 20 more items and adding them to the adapter
 					try{
-					
+						 xml = myParser.getXmlFromUrl(RSSFEEDURL);
+					     feed = myParser.parseXml(xml,currentPage);       
                     //Adding parsed items to adapter.
                     for (int i = currentPage * ITEMS_PPAGE; i < (currentPage + 1) * ITEMS_PPAGE; i++) {
-                    	
-                    	DOMParser myParser = new DOMParser();
-            			String xml = myParser.getXmlFromUrl(RSSFEEDURL);
-                        feed = myParser.parseXml(xml,currentPage);
-                        
-                        ListActivity.this.adapter.getView(i, lv, null);
-                        		//String.valueOf(Math.random() * 5000));
+                    	blogs.add(feed.getItem(i));          
                     }
-                    ListActivity.this.adapter.notifyDataSetChanged();
+                        ListActivity.this.adapter.notifyDataSetChanged();
 					}
 					catch (Exception ex){
 						ex.printStackTrace();
@@ -271,6 +252,8 @@ public class ListActivity extends Activity{
 		protected void onPostExecute(String result) {
 			// TODO Auto-generated method stub
 			super.onPostExecute(result);
+			adapter = new CustomListAdapter(ListActivity.this,blogs);
+			lv.setAdapter(adapter);
 		}
 
     	
@@ -278,27 +261,38 @@ public class ListActivity extends Activity{
  
 	class CustomListAdapter extends BaseAdapter{
 		
+		int count = 20;
+
 		private LayoutInflater layoutInflater;
+	
 		public ImageLoader imageLoader;
 		
+		private List<RSSItem> blogList;
 		
-		public CustomListAdapter(ListActivity activity) {
+		public CustomListAdapter(ListActivity activity,List<RSSItem> blogList) {
 		 
-		layoutInflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-		imageLoader = new ImageLoader(activity.getApplicationContext());
+			layoutInflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+			imageLoader = new ImageLoader(activity.getApplicationContext());
+			this.blogList = blogList;
 		
+		}
+		
+		public void add(RSSItem blog){
+			blogList.add(blog);
+			notifyDataSetChanged();
 		}
 
 		@Override
 		public int getCount() {
 			// TODO Auto-generated method stub
-			return feed.getItemCount();
+			//return feed.getItemCount();
+			return blogList.size();
 		}
 
 		@Override
 		public Object getItem(int position) {
 			// TODO Auto-generated method stub
-			return position;
+			return blogList.get(position);
 		}
 
 		@Override
@@ -306,8 +300,6 @@ public class ListActivity extends Activity{
 			// TODO Auto-generated method stub
 			return position;
 		}
-
-		
 
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
@@ -327,13 +319,14 @@ public class ListActivity extends Activity{
 				}
 			
 			// Set the views in the layout
-			    imageLoader.DisplayImage(feed.getItem(pos).getImage(), iv);
-				tvTitle.setText(feed.getItem(pos).getTitle());
+			    imageLoader.DisplayImage(blogList.get(pos).getImage(), iv);
+				tvTitle.setText(blogList.get(pos).getTitle());
 			
-				Log.v(TAG, "Link is:"+feed.getItem(pos).getLink());
+				Log.v(TAG, "Link is:"+blogList.get(pos).getLink());
+				Log.v(TAG, "Adapter count is:"+blogList.size());
 		    
 				//Including day and date.
-				tvDate.setText(feed.getItem(pos).getDate().substring(4, 16));
+				tvDate.setText(blogList.get(pos).getDate().substring(4, 16));
 			
 			
 			return listItem;

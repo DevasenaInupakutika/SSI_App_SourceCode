@@ -91,8 +91,9 @@ public class DOMParser {
 			// Get all <item> tags i.e. Root node of each section we want to parse.
 			NodeList nl = doc.getElementsByTagName("item"); //Parent node
 			int length = nl.getLength();
-		
-			for (int i = curr_page * item_page ; i < (curr_page + 1) * item_page; i++) {
+		//curr_page * item_page
+			//(curr_page + 1) * item_page
+			for (int i = 0 ; i < length ; i++) {
 				//Node currentNode = nl.item(i);
 				Node currentNode = nl.item(i);
 				RSSItem _item = new RSSItem();
